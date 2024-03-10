@@ -1,85 +1,115 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ramadan Books',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData(
-        fontFamily: 'Cairo',
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: MyHomePage(),
-    );
-  }
+  State<MyApp> createState() => _MyAppState();
 }
 
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
+class _MyAppState extends State<MyApp> {
   List<String> titles = [];
 
   @override
   void initState() {
     super.initState();
-    loadTitlesFromFiles();
+    _loadAssetFiles();
   }
 
-  void loadTitlesFromFiles() async {
-    // Directory path where your text files are stored
-    Directory directory = Directory('/assets/books');
+  Future<void> _loadAssetFiles() async {
+    // Replace 'books' with your actual assets directory
+    const String directoryPath = 'assets/books';
 
-    // List all files in the directory
-    List<FileSystemEntity> files = directory.listSync();
-
-    // Extract titles from file names
-    titles = files.map((file) => file.uri.pathSegments.last).toList();
-
-    setState(() {});
-  }
-
-  Future<void> openTextFile(String fileName) async {
     try {
-      File file = File('/assets/books/$fileName');
-      String fileContents = await file.readAsString();
+      // Get a list of file names in the specified directory
+      List<String> fileNames =
+          await rootBundle.assetManifest().then((manifest) {
+        return manifest.keys
+            .where((key) => key.startsWith(directoryPath))
+            .map((key) => key.substring(directoryPath.length + 1))
+            .toList();
+      });
 
-      // Use the file contents as needed (e.g., display in a new screen)
-      print(fileContents);
+      // Now, you have the list of file names in the 'fileNames' variable.
+      // You can assign it to your 'titles' list or perform any other operations.
+
+      setState(() {
+        this.titles = List.from(fileNames);
+      });
+
+      // Print the list of titles (optional)
+      print('Titles: $titles');
     } catch (e) {
-      print('Error opening file: $e');
+      // Handle any potential errors
+      print('Error loading asset files: $e');
     }
   }
+  // Future<void> _loadFileTitles() async {
+  //   final manifest = await rootBundle.loadString('AssetManifest.json');
+  //   // Parse manifest JSON to find files in assets/books
+  //   final booksDir = 'assets/books/';
+  //   final titles = manifest
+  //       .split('\n')
+  //       .where((line) => line.startsWith(booksDir) && line.endsWith('.txt'))
+  //       .map((line) => line.split('/').last.split('.').first)
+  //       .toList();
+
+  //   setState(() {
+  //     this.titles = titles;
+  //   });
+  // }
+
+  Future<void> _openFile(String title) async {
+    final content = await rootBundle.loadString('assets/books/$title.txt');
+
+    // Display the content in a new screen or dialog
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TextScreen(content: content),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Text Files'),
+        ),
+        body: ListView.builder(
+          itemCount: titles.length,
+          itemBuilder: (context, index) {
+            return ListTile(
+              title: Text(titles[index]),
+              onTap: () => _openFile(titles[index]),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class TextScreen extends StatelessWidget {
+  final String content;
+
+  const TextScreen({Key? key, required this.content}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('كتب رمضانية'),
-        leading: Icon(Icons.light_mode),
+        title: const Text('File Content'),
       ),
-      body: ListView.builder(
-        itemCount: titles.length,
-        itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(titles[index]),
-            onTap: () {
-              openTextFile(titles[index]);
-            },
-          );
-        },
+      body: SingleChildScrollView(
+        child: Text(content),
       ),
     );
   }
